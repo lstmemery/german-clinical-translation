@@ -1,0 +1,5 @@
+{
+  "scale_name": "CEAS-FROM",
+  "model_name": "One Factor",
+  "model_string": "CEAS_FROM =~ T1_CEAS_FR1_1 + T1_CEAS_FR1_2 + T1_CEAS_FR1_4 + T1_CEAS_FR1_5 + T1_CEAS_FR1_6 + T1_CEAS_FR2_7 + T1_CEAS_FR2_8 + T1_CEAS_FR2_9 + T1_CEAS_FR2_10"
+}

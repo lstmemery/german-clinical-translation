@@ -1,0 +1,15 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+data
+reference
+results
+.idea
+backup
+output
+
+*.zip
+notebooks/*.docx
+notebooks/*.html

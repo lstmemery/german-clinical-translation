@@ -1,0 +1,159 @@
+---
+title: ""
+format: docx
+editor: visual
+execute: 
+  echo: false
+params:
+  data: "../results/socs_s_tidy.feather"
+  model: "../models/socs_s_five_factor.json"
+---
+
+```{r, echo=FALSE, message=FALSE}
+library(tidyverse)
+library(jsonlite)
+library(feather)
+library(knitr)
+library(flextable)
+source("../R/funcs.R")
+```
+
+```{r}
+model_info <- read_json(params$model)
+model_info
+```
+
+# `r model_info$scale_name` `r model_info$model_name`
+
+```{r}
+tidy_df <- read_feather(params$data)
+```
+
+```{r}
+scale_name <- model_info$scale_name
+model_name <- model_info$model_name
+model_string <- model_info$model_string
+```
+
+```{r}
+df <- tidy_df %>% 
+  pivot_wider(values_from = value, id_cols = ID, names_from = name)
+```
+
+## Correlation
+
+```{r, correlation, fig.width=16, fig.height=9}
+if (max(tidy_df$value) > 8) {
+  cor_matrix <- cor(df %>% select(-ID), method="spearman")
+  cor_method <- "Spearman"
+} else {
+  cor_matrix <- polychoric(df %>% select(-ID))$rho
+  cor_method <- "Polychoric"
+}
+
+format_correlation(cor_matrix, str_c(scale_name, cor_method, sep = " "))
+```
+
+## Eigenvalues (none should negative)
+
+```{r}
+eigen(cor_matrix)$values
+```
+
+## Interpret fit
+
+```{r}
+cfa_fit <- fit_cfa(model_info, df)
+```
+
+```{r}
+if (cfa_fit@Fit@converged) {
+  interpret_fit(cfa_fit)
+} else {
+  print("No convergence.")
+}
+
+```
+
+```{r}
+if (cfa_fit@Fit@converged) {
+  lav_fit_measures(cfa_fit, df, scale_name, model_name)
+} else {
+  print("No convergence.")
+}
+```
+
+```{r}
+varTable(cfa_fit)
+```
+
+## SEM Paths
+
+```{r}
+format_sem_paths(cfa_fit, scale_name, model_name)
+```
+
+## Model Parameters
+
+```{r}
+format_huxtable(format_cfa_parameters(cfa_fit))
+```
+
+## Omegas
+
+```{r}
+omegas <- get_omegas(cfa_fit)
+omegas
+```
+
+## Invariance Analysis
+
+### Gender
+
+```{r}
+gender_df <- read_feather("../results/gender.feather")
+
+merged_gender_df <- df %>% 
+  inner_join(gender_df, "ID")
+
+test_measurement_invariance(model_string, merged_gender_df, "gender")
+```
+
+### Age
+
+```{r}
+age_df <- read_feather("../results/age.feather")
+
+merged_age_df <- df %>% 
+  inner_join(age_df, "ID")
+
+test_measurement_invariance(model_string, merged_age_df, "age_group")
+```
+
+### Education Level
+
+```{r}
+edu_df <- read_feather("../results/school_level.feather")
+
+merged_edu_df <- df %>% 
+  inner_join(edu_df, "ID")
+
+test_measurement_invariance(model_string, merged_edu_df, "school_level")
+```
+
+### Professional Level
+
+```{r}
+prof_df <- read_feather("../results/professional_level.feather")
+
+merged_prof_df <- df %>% 
+  inner_join(prof_df, "ID")
+
+test_measurement_invariance(model_string, merged_prof_df, "professional_level")
+```
+
+## Session Information
+
+```{r}
+sessionInfo()
+```

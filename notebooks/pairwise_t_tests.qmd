@@ -1,0 +1,35 @@
+---
+title: "pairwise_t_tests"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(haven)
+source("../R/funcs.R")
+```
+
+```{r}
+df <- read_sav("../results/delta_scale_data.sav")
+```
+
+```{r}
+ttest_list <- list(
+  c("SOCSS1", "SOCSS2"),
+  c("DERSTot1", "DERSTot2"),
+  c("ERSQTot1", "ERSQTot2"),
+  c("T1_PHQ9", "T2_PHQ9"),
+  c("T1_H49_B", "T2_H49_B")
+)
+```
+
+```{r}
+ttest_list %>%
+  map(~t.test(df[[.x[1]]], df[[.x[2]]]) %>% 
+      tidy() %>% 
+      mutate(test = paste(.x[1], "vs", .x[2]))) %>%
+  bind_rows() %>%
+  select(test, p.value) %>%
+  mutate(adjusted_p.value = p.adjust(p.value, method = "BH", n =5))
+```

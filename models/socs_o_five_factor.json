@@ -1,0 +1,5 @@
+{
+	"scale_name": "SOCS-O",
+	"model_name": "Five Factor",
+	"model_string": "recognizing_suffering =~ SOCS_O_1 + SOCS_O_6 + SOCS_O_11 + SOCS_O_16\nuniversality_of_suffering =~ SOCS_O_2 + SOCS_O_7 + SOCS_O_12 + SOCS_O_17\nfeeling_of_suffering =~ SOCS_O_3 + SOCS_O_8 + SOCS_O_13 + SOCS_O_18\ntolerating_discomfort =~ SOCS_O_4 + SOCS_O_9 + SOCS_O_14 + SOCS_O_19\nalleviate_suffering =~ SOCS_O_5 + SOCS_O_10 + SOCS_O_15 + SOCS_O_20"
+}

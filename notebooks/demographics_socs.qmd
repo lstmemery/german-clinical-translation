@@ -1,0 +1,185 @@
+---
+title: "Demographics"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(haven)
+library(feather)
+library(icd)
+```
+
+```{r}
+df <- read_sav("../data/2024.08.04 Master Database 777.sav") %>% 
+  filter(if_all(starts_with("T1_SOCS_S"), ~ !is.na(.))) %>% 
+  filter(if_all(starts_with("T1_SOCS_S"), ~ . < 6))
+```
+
+## Age
+
+```{r}
+age_df <- df %>% 
+  select(ID, Age_yrs) %>% 
+  filter(!is.na(Age_yrs)) %>% 
+  mutate(age_group = if_else(Age_yrs < median(Age_yrs), "Under 54", "54 and Over"))
+```
+
+```{r}
+median(age_df$Age_yrs)
+```
+
+```{r}
+age_df %>% 
+  summarise(mean_age=mean(Age_yrs), sd_age=sd(Age_yrs), min_age = min(Age_yrs), max_age= max(Age_yrs)) 
+```
+
+```{r}
+age_df %>% 
+  write_feather("../results/age_socs.feather")
+```
+
+```{r}
+df %>% 
+  count(Age_yrs) %>% 
+  arrange(Age_yrs) %>%
+  write_csv("../results/count_age_socs.csv")
+```
+
+## Gender
+
+```{r}
+gender_df <- df %>% 
+  select(ID, Gender) %>% 
+  mutate(gender = as.character(as_factor(Gender))) %>%
+  select(-Gender) 
+```
+
+```{r}
+gender_df %>% 
+  write_feather("../results/gender_socs.feather")
+```
+
+```{r}
+df %>% 
+  count(Gender) %>% 
+  arrange(Gender) %>% 
+  mutate(Gender = as_factor(Gender)) %>% 
+  write_csv("../results/count_gender_socs.csv")
+```
+
+## School Level
+
+```{r}
+df %>%
+  select(ID, `T1_PAT_1.1`) %>% 
+  filter(`T1_PAT_1.1` %in% c(4, 5, 6)) %>% 
+  mutate(school_level = as_factor(`T1_PAT_1.1`)) %>% 
+  select(-`T1_PAT_1.1`) %>% 
+  write_feather("../results/school_level_socs.feather")
+```
+
+```{r}
+df %>% 
+  count(`T1_PAT_1.1`) %>% 
+  arrange(`T1_PAT_1.1`) %>% 
+  mutate(`T1_PAT_1.1` = as_factor(`T1_PAT_1.1`)) %>% 
+  write_csv("../results/count_school_level_socs.csv")
+```
+
+## Professional Level
+
+```{r}
+df %>% 
+  select(ID, `T1_PAT_1.2`) %>% 
+  filter(`T1_PAT_1.2` %in% c(2, 3, 4, 5)) %>% 
+  mutate(professional_level = as_factor(`T1_PAT_1.2`)) %>% 
+  mutate(professional_level = fct_recode(
+    professional_level,
+    "College" = "4 year college or university",
+    "College" = "3 year college",
+    "Vocational" = "Vocational degree",
+    "Vocational" = "Master"
+    )) %>% 
+  select(-`T1_PAT_1.2`) %>% 
+  write_feather("../results/professional_level_socs.feather")
+```
+
+```{r}
+df %>% 
+  count(`T1_PAT_1.2`) %>% 
+  arrange(`T1_PAT_1.2`) %>% 
+  mutate(`T1_PAT_1.2` = as_factor(`T1_PAT_1.2`)) %>% 
+  write_csv("../results/count_professional_level_socs.csv")
+```
+
+```{r}
+df %>% 
+  count(T1_THER_Spec_Ther_Dur) %>% 
+  arrange(T1_THER_Spec_Ther_Dur) %>% 
+  mutate(T1_THER_Spec_Ther_Dur = as_factor(T1_THER_Spec_Ther_Dur)) %>% 
+  write_csv("../results/count_hospitalization_length_socs.csv")
+```
+
+```{r}
+df %>% 
+  count(T1_THER_Mig_Back) %>% 
+  arrange(T1_THER_Mig_Back) %>% 
+  mutate(T1_THER_Mig_Back = as_factor(T1_THER_Mig_Back)) %>% 
+  write_csv("../results/count_migration_background_socs.csv")
+```
+
+```{r}
+df %>% 
+  count(T1_PAT_4.2) %>% 
+  arrange(T1_PAT_4.2) %>% 
+  mutate(T1_PAT_4.2 = as_factor(T1_PAT_4.2)) %>% 
+  write_csv("../results/count_motivation_socs.csv")
+
+```
+
+Write out methods
+
+## Primary Diagnosis
+
+```{r}
+possibly_explain_code <- function(x) {
+  result <- explain_code(x)
+  if (length(result) == 1) {
+    result
+  } else {
+    x
+  }
+}
+```
+
+```{r}
+primary_conditions_df <- df %>%
+  transmute(T1_ICD_P = str_split_i(T1_ICD_P, '\\.', 1)) %>%
+  mutate(icd_name = purrr::map_chr(T1_ICD_P, possibly_explain_code)) %>% 
+  count(T1_ICD_P, icd_name) %>% 
+  arrange(desc(n))
+  
+```
+
+```{r}
+write_csv(primary_conditions_df, "../results/count_primary_conditions_socs.csv")
+```
+
+## Secondary Conditions
+
+```{r}
+secondary_conditions_df <- df %>% 
+  select(ID, starts_with("T1_ICD_S")) %>% 
+  pivot_longer(-ID, values_to = "diagnosis", values_drop_na = TRUE) %>% 
+  mutate(diagnosis = str_split_i(diagnosis, '\\.', 1)) %>% 
+  distinct(ID, diagnosis) %>% 
+  mutate(icd_name = purrr::map_chr(diagnosis, possibly_explain_code)) %>% 
+  count(diagnosis, icd_name) %>% 
+  arrange(desc(n))
+```
+
+```{r}
+write_csv(secondary_conditions_df, "../results/count_secondary_conditions_socs.csv")
+```

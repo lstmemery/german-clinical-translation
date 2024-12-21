@@ -1,0 +1,64 @@
+---
+title: "Process Modeling"
+format: docx
+editor: visual
+params:
+  model: "../models/t1_ersq_s_phq9.json"
+---
+
+## PROCESS Modeling
+
+```{r, message=FALSE, warning=FALSE}
+source("../R/process.R")
+source("../R/funcs.R")
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(haven)
+library(jsonlite)
+library(purrr)
+```
+
+```{r}
+df <- read_sav("../results/delta_scale_data.sav")
+```
+
+```{r}
+model <- read_json(params$model)
+```
+
+```{r}
+all_variables <- list_flatten(model) %>% 
+  list_c()
+```
+
+```{r}
+complete_df <- df %>% 
+  select(all_of(all_variables)) %>% 
+  na.omit()
+```
+
+## PROCESS Result
+
+```{r}
+process_result <- capture.output(
+  process(
+    data = complete_df, 
+    y = model$y, 
+    x = model$x, 
+    m = list_c(model$m),
+    cov=list_c(model$cov),
+    model = 4, 
+    effsize =1, 
+    total =1, 
+    stand =1, 
+    boot = 10000, 
+    modelbt = 1, 
+    seed = 1
+    )
+  )
+
+process_result %>% 
+  purrr::discard(~str_detect(., ">>")) %>% 
+  writeLines()
+```

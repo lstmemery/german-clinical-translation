@@ -1,0 +1,16 @@
+{
+	"m": [
+		"ERSQ_AE1",
+		"ERSQ_S1",
+		"ERSQ_CL1",
+		"ERSQ_UN1",
+		"ERSQ_AC1",
+		"ERSQ_RS1",
+		"ERSQ_RC1",
+		"ERSQ_SS1",
+		"ERSQ_MO1"
+	],
+	"x": "SOCSS1",
+	"y": "T1_H49_B",
+	"cov": []
+}

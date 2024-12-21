@@ -1,0 +1,311 @@
+---
+title: "Scale Characterization"
+format: docx
+editor: visual
+---
+
+## Scale Characterization
+
+```{r}
+library(tidyverse)
+library(haven)
+source("../R/funcs.R")
+```
+
+```{r}
+df <- read_sav("../results/delta_scale_data.sav") %>% 
+  filter(!is.na(SOCSS2))
+```
+
+## Correlations
+
+### Scale Correlation
+
+```{r}
+scales_df <- df %>% 
+  select(
+    ID,
+    SOCSS2, 
+    SOCSS_R2, 
+    SOCSS_U2, 
+    SOCSS_F2, 
+    SOCSS_T2, 
+    SOCSS_A2, 
+    DERSTot2,
+    DERS_NO2,
+    DERS_G2,
+    DERS_IM2,
+    DERS_A2,
+    DERS_S2,
+    DERS_CL2,
+    ERSQTot2,
+    ERSQ_AE2,
+    ERSQ_S2,
+    ERSQ_CL2,
+    ERSQ_UN2,
+    ERSQ_AC2,
+    ERSQ_RS2,
+    ERSQ_RC2,
+    ERSQ_SS2,
+    ERSQ_MO2,
+    T2_PHQ9,
+    T2_H49_B
+    ) %>% 
+  filter(complete.cases(.))
+```
+
+```{r}
+df %>% 
+  select(contains("SOCSS"))
+```
+
+```{r}
+nrow(scales_df)
+```
+
+```{r}
+scale_correlations <- corr.test(scales_df %>% select(-ID), adjust = "BH")
+```
+
+```{r}
+scale_stars <- scale_correlations$stars %>% 
+  as_tibble() %>% 
+  mutate(Scale = colnames(scale_correlations$stars), .before=everything())
+```
+
+```{r}
+write_csv(scale_stars, "../results/scale_correlation.csv")
+```
+
+## Ceiling/Floor Effects
+
+## Alphas
+
+### SOCS Alpha
+
+```{r}
+socs_model_string <- "SOCSS_R2 =~ T2_SOCS_S_1 + T2_SOCS_S_6 + T2_SOCS_S_11 + T2_SOCS_S_16
+SOCSS_U2 =~ T2_SOCS_S_2 + T2_SOCS_S_7 + T2_SOCS_S_12 + T2_SOCS_S_17
+SOCSS_F2 =~ T2_SOCS_S_3 + T2_SOCS_S_8 + T2_SOCS_S_13 + T2_SOCS_S_18
+SOCSS_T2 =~ T2_SOCS_S_4 + T2_SOCS_S_9 + T2_SOCS_S_14 + T2_SOCS_S_19
+SOCSS_A2 =~ T2_SOCS_S_5 + T2_SOCS_S_10 + T2_SOCS_S_15 + T2_SOCS_S_20
+SOCSS2 =~ SOCSS_R2 + SOCSS_U2 + SOCSS_F2 + SOCSS_T2 + SOCSS_A2
+"
+socs_df <- df %>% 
+  select(starts_with("T2_SOCS_S")) %>% 
+  filter(complete.cases(.))
+
+socs_cfa <- cfa(
+      socs_model_string, 
+      data=socs_df,
+      estimator="MLR",
+      std.lv=TRUE,
+      orthogonal=TRUE
+    )
+```
+
+```{r}
+nrow(socs_df)
+```
+
+```{r}
+get_omegas(socs_cfa)
+```
+
+```{r}
+cor(socs_df, use = "pairwise.complete.obs") %>% 
+  as.table() %>% 
+  as.data.frame() %>% 
+  filter(Var1 != Var2) %>% 
+  filter(Freq > 0.8)
+
+```
+
+## DERS Alpha
+
+```{r}
+ders_model_string <- "
+DERS_NO2 =~ T2_DERS_11 + T2_DERS_12 + T2_DERS_21 + T2_DERS_23 + T2_DERS_25 + T2_DERS_29
+DERS_G2 =~ T2_DERS_13 + T2_DERS_18 + T2_DERS_20R + T2_DERS_26 + T2_DERS_33
+DERS_IM2 =~ T2_DERS_3 + T2_DERS_14 + T2_DERS_19 + T2_DERS_24R + T2_DERS_27 + T2_DERS_32
+DERS_A2 =~ T2_DERS_2R + T2_DERS_6R + T2_DERS_8R + T2_DERS_10R + T2_DERS_17R + T2_DERS_34R
+DERS_S2 =~ T2_DERS_15 + T2_DERS_16 + T2_DERS_22R + T2_DERS_28 + T2_DERS_30 + T2_DERS_31 + T2_DERS_35 + T2_DERS_36
+DERS_CL2 =~ T2_DERS_1R + T2_DERS_4 + T2_DERS_5 + T2_DERS_7R + T2_DERS_9
+DERSToT2 =~ DERS_NO2 + DERS_G2 + DERS_IM2 + DERS_A2 + DERS_S2 + DERS_CL2
+"
+
+ders_df <- df %>% 
+  select(starts_with("T2_DERS")) %>% 
+  filter(complete.cases(.))
+
+ders_cfa <- cfa(
+      ders_model_string, 
+      data=ders_df,
+      estimator="MLR",
+      std.lv=TRUE,
+      orthogonal=TRUE
+    )
+```
+
+```{r}
+nrow(ders_df)
+```
+
+```{r}
+cor(ders_df, use = "pairwise.complete.obs") %>% 
+  as.table() %>% 
+  as.data.frame() %>% 
+  filter(Var1 != Var2) %>% 
+  filter(Freq > 0.9)
+```
+
+```{r}
+get_omegas(ders_cfa)
+```
+
+### ERSQ Alpha
+
+```{r}
+ersq_model_string <- "
+ERSQ_AE2 =~ T2_ERSQ_1 + T2_ERSQ_12 + T2_ERSQ_19
+ERSQ_S2 =~ T2_ERSQ_7 + T2_ERSQ_14 + T2_ERSQ_24
+ERSQ_CL2 =~ T2_ERSQ_6 + T2_ERSQ_13 + T2_ERSQ_25
+ERSQ_UN2 =~ T2_ERSQ_3 + T2_ERSQ_11 + T2_ERSQ_20
+ERSQ_AC2 =~ T2_ERSQ_5 + T2_ERSQ_17 + T2_ERSQ_23
+ERSQ_RS2 =~ T2_ERSQ_4 + T2_ERSQ_18 + T2_ERSQ_26
+ERSQ_RC2 =~ T2_ERSQ_8 + T2_ERSQ_16 + T2_ERSQ_22
+ERSQ_SS2 =~ T2_ERSQ_9 + T2_ERSQ_15 + T2_ERSQ_27
+ERSQ_MO2 =~ T2_ERSQ_2 + T2_ERSQ_10 + T2_ERSQ_21
+ERSQToT2 =~ ERSQ_AE2 + ERSQ_S2 + ERSQ_CL2 + ERSQ_UN2 + ERSQ_AC2 + ERSQ_RS2 + ERSQ_RC2 + ERSQ_SS2 + ERSQ_MO2
+"
+
+ersq_df <- df %>% 
+  select(starts_with("T2_ERSQ")) %>% 
+  filter(complete.cases(.))
+
+ersq_cfa <- cfa(
+      ersq_model_string, 
+      data=ersq_df,
+      estimator="MLR",
+      std.lv=TRUE,
+      orthogonal=TRUE
+    )
+```
+
+```{r}
+nrow(ersq_df)
+```
+
+```{r}
+cor(ersq_df, use = "pairwise.complete.obs") %>% 
+  as.table() %>% 
+  as.data.frame() %>% 
+  filter(Var1 != Var2) %>% 
+  filter(Freq > 0.9)
+```
+
+```{r}
+get_omegas(ersq_cfa)
+```
+
+### PHQ9 Alpha
+
+```{r}
+phq9_model_string <- "
+T2_PHQ9 =~ T2_PAT_3.2.2.1 + T2_PAT_3.2.2.2 + T2_PAT_3.2.2.3 + T2_PAT_3.2.2.4 + T2_PAT_3.2.2.5 + T2_PAT_3.2.2.6 + T2_PAT_3.2.2.7 + T2_PAT_3.2.2.8 + T2_PAT_3.2.2.9
+"
+
+phq9_df <- df %>% 
+  select(starts_with("T2_PAT_3.2.2")) %>% 
+  filter(complete.cases(.))
+
+phq9_cfa <- cfa(
+      phq9_model_string, 
+      data=phq9_df,
+      estimator="MLR",
+      std.lv=TRUE,
+      orthogonal=TRUE
+    )
+```
+
+```{r}
+nrow(phq9_df)
+```
+
+```{r}
+cor(phq9_df, use = "pairwise.complete.obs") %>% 
+  as.table() %>% 
+  as.data.frame() %>% 
+  filter(Var1 != Var2) %>% 
+  filter(Freq > 0.9)
+```
+
+```{r}
+get_omegas(phq9_cfa)
+```
+
+### H49B Alpha
+
+```{r}
+h49b_model_string <- "
+T2_H49_B =~ T2_PAT_3.4.B.1 + T2_PAT_3.4.B.2 + T2_PAT_3.4.B.3 + T2_PAT_3.4.B.4 + T2_PAT_3.4.B.5
+"
+
+h49b_df <- df %>% 
+  select(starts_with("T2_PAT_3.4.B")) %>% 
+  filter(complete.cases(.))
+
+h49b_cfa <- cfa(
+      h49b_model_string, 
+      data=h49b_df,
+      estimator="MLR",
+      std.lv=TRUE,
+      orthogonal=TRUE
+    )
+```
+
+```{r}
+cor(h49b_df, use = "pairwise.complete.obs") %>% 
+  as.table() %>% 
+  as.data.frame() %>% 
+  filter(Var1 != Var2) %>% 
+  filter(Freq > 0.9)
+```
+
+```{r}
+nrow(h49b_df)
+```
+
+```{r}
+get_omegas(h49b_cfa)
+```
+
+## Descriptive Statistics
+
+```{r}
+descriptives_df <- df %>% 
+    select(
+    ID,
+    SOCSS1, 
+    DERSTot1,
+    ERSQTot1,
+    T1_PHQ9,
+    T1_H49_B
+    ) %>% 
+  pivot_longer(-ID, values_drop_na = TRUE) %>% 
+  group_by(name) %>% 
+  summarise(
+    scale_mean = round(mean(value, na.rm = TRUE), 2),
+    scale_sd = round(sd(value, na.rm = TRUE), 2),
+    scale_min = min(value, na.rm = TRUE),
+    scale_max = max(value, na.rm = TRUE),
+    floor_percent = sum(min(value, na.rm = TRUE) == value)/ n() * 100,
+    ceiling_percent = sum(max(value, na.rm = TRUE) == value)/ n() * 100,
+    )
+
+descriptives_df
+```
+
+```{r}
+write_csv(descriptives_df, "../results/descriptive-statistics.csv")
+```

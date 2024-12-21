@@ -1,0 +1,195 @@
+```{r}
+
+```
+
+---
+title: "Data Prep"
+format: html
+editor: visual
+---
+
+```{r}
+library(haven)
+library(tidyverse)
+library(feather)
+library(psych)
+library(moments)
+```
+
+```{r}
+df <- read_sav("../data/2024.08.04 Master Database 777.sav")
+```
+
+## SOCS-S
+
+```{r}
+socs_df <- df %>% 
+  select(ID, starts_with("T1_SOCS_S")) %>% 
+  filter(if_all(starts_with("T1_SOCS_S"), ~ !is.na(.))) %>% 
+  filter(if_all(starts_with("T1_SOCS_S"), ~ . < 6))
+```
+
+```{r}
+tidy_socs_df <- socs_df %>% 
+  pivot_longer(-ID) %>% 
+  mutate(
+    name = str_extract(name, "SOCS_S_\\d+"),
+    value = as.numeric(value)
+    ) 
+
+tidy_socs_df %>% 
+  write_feather("../results/socs_s_tidy.feather")
+```
+
+```{r}
+tidy_df <- function(df, scale_name, max_value) {
+  df %>% 
+    select(ID, matches(scale_name)) %>% 
+    filter(if_all(matches(scale_name), ~ !is.na(.))) %>% 
+    filter(if_all(matches(scale_name), ~ . <= max_value)) %>% 
+    pivot_longer(-ID) %>% 
+    mutate(
+      value = as.numeric(value)
+    ) 
+}
+```
+
+```{r}
+tidy_df(df, "T1_CEAS_S\\d_", 10) %>% 
+  write_feather("../results/ceas_s_tidy.feather")
+```
+
+```{r}
+tidy_df(df, "T1_CEAS_O\\d_", 10) %>% 
+  write_feather("../results/ceas_o_tidy.feather")
+```
+
+```{r}
+tidy_df(df, "T1_CEAS_FR\\d_", 10) %>% 
+  write_feather("../results/ceas_fr_tidy.feather")
+```
+
+```{r}
+tidy_df(df, "T1_SOCS_O", 6) %>% 
+    mutate(
+      name = str_extract(name, "SOCS_O_\\d+"),
+      value = as.numeric(value)
+    ) %>% 
+  write_feather("../results/socs_o_tidy.feather")
+```
+
+## Ceiling
+
+```{r}
+ggplot(socs_df, aes(x=T1_SOCS_S_17)) + 
+  geom_histogram()
+```
+
+```{r}
+
+```
+
+## Deltas
+
+```{r}
+df %>% 
+  select(SOCSS1, SOCSS2, DERSTot1, DERSTot2, ERSQTot1, ERSQTot2, T1_PHQ9, T2_PHQ9)
+```
+
+```{r}
+updated_df <- df %>% 
+  mutate(
+    DERSTot1 = if_else(if_any(matches("T1_DERS_\\d+"), is.na), NA_real_, DERSTot1),
+    DERSTot2 = if_else(if_any(matches("T2_DERS_\\d+"), is.na), NA_real_, DERSTot2)
+  ) %>% 
+  mutate(
+    DELSOCS = SOCSS2 - SOCSS1,
+    DELDERS = DERSTot2 - DERSTot1,
+    DELERSQ = ERSQTot2 - ERSQTot1,
+    DELPHQ9 = T2_PHQ9 - T1_PHQ9
+    )
+  
+
+
+```
+
+```{r}
+updated_df %>% 
+  select(starts_with("DEL"))
+```
+
+```{r}
+updated_df %>% 
+  filter(if_any(matches("T1_DERS_\\d+"), is.na) & !is.na(DERSTot1))
+```
+
+```{r}
+updated_df %>% 
+  write_sav("../results/delta_scale_data.sav")
+```
+
+```{r}
+updated_df
+```
+
+## Skewness and Kurtosis
+
+```{r}
+skew_df <- updated_df %>% 
+  filter(!is.na(SOCSS1)) %>% 
+  select(starts_with("T1_SOCS"), starts_with("T1_CEAS"), starts_with("T1_DERS"), starts_with("T1_ERSQ"), starts_with("T1_PAT_3.2.2"), starts_with("T1_PAT_3.4.B")) %>% 
+  mutate_all(as.numeric) %>% 
+  pivot_longer(everything(), names_to = "item", values_to = "value", values_drop_na = TRUE)
+```
+
+```{r}
+skew_df %>% 
+  group_by(item) %>% 
+  summarise(
+    skewness_val = skewness(value),
+    kurtosis_val = kurtosis(value)
+    ) %>% 
+  summarise(max(skewness_val), max(kurtosis_val))
+```
+
+```{r}
+scale_skew_df <- updated_df %>% 
+  filter(!is.na(SOCSS1)) %>% 
+  select(    SOCSS1, 
+    SOCSS_R1, 
+    SOCSS_U1, 
+    SOCSS_F1, 
+    SOCSS_T1, 
+    SOCSS_A1, 
+    DERSTot1,
+    DERS_NO1,
+    DERS_G1,
+    DERS_IM1,
+    DERS_A1,
+    DERS_S1,
+    DERS_CL1,
+    ERSQTot1,
+    ERSQ_AE1,
+    ERSQ_S1,
+    ERSQ_CL1,
+    ERSQ_UN1,
+    ERSQ_AC1,
+    ERSQ_RS1,
+    ERSQ_RC1,
+    ERSQ_SS1,
+    ERSQ_MO1,
+    T1_PHQ9,
+    T1_H49_B) %>% 
+  mutate_all(as.numeric) %>% 
+  pivot_longer(everything(), names_to = "item", values_to = "value", values_drop_na = TRUE)
+```
+
+```{r}
+scale_skew_df %>% 
+  group_by(item) %>% 
+  summarise(
+    skewness_val = skewness(value),
+    kurtosis_val = kurtosis(value)
+    ) %>% 
+  summarise(max(skewness_val))
+```
